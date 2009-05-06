@@ -3,7 +3,7 @@ duplicates remover for iTunes
 
 # Dependencies
 
-[RubyOSA]([http://rubyosa.rubyforge.org/)
+[RubyOSA](http://rubyosa.rubyforge.org/)
 
 # How to use
 
