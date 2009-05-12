@@ -27,6 +27,26 @@ require 'rubygems'
 require 'rbosa'
 require 'digest/md5'
 require 'optparse'
+require 'fileutils'
+
+opts = {
+   :y => false,
+}
+
+OptionParser.new do |o|
+   o.banner = "USAGE: #{$0} [-p NAME] [-y]"
+
+   o.on('-y', '--yes', 'delete duplicates') do |y|
+      opts[:y] = true
+   end
+   o.on('-p NAME', '--playlist NAME') do |p|
+      opts[:p] = p
+   end
+   o.on('-h', '--help') do |h|
+      puts o
+      exit
+   end
+end.parse!
 
 ## http://d.hatena.ne.jp/kusakari/20080129/1201596766
 class Numeric
@@ -40,8 +60,9 @@ class Numeric
   end
 end
 
-def find_duplicates(playlist)
+def find_duplicates(playlist, delete=false)
    tracks = {}
+
    playlist.file_tracks.each do |t|
       digest = Digest::MD5.hexdigest( [ t.name.downcase, 
                                         t.album.downcase, 
@@ -55,33 +76,29 @@ def find_duplicates(playlist)
          tracks[digest] = [t]
       end
    end
-   return tracks
+
+   tracks.each do |k,v|
+      next if v.length < 2
+      while v.length > 1 do
+          track = v.pop
+          puts track.location
+          location = track.location
+          $itunes.delete(track) if delete
+          FileUtils.rm(location) if delete
+      end
+   end
 end   
 
-OPTS = {}
+## main
+$itunes = OSA.app('iTunes')
 
-opt = OptionParser.new
-opt.on('-y', '--yes') { OPTS[:y] = true }
-opt.on('-p NAME', '--playlist-name NAME') { |v| OPTS[:p] = v }
-opt.parse!(ARGV)
-
-itunes = OSA.app('iTunes')
-tracks = {}
-
-if OPTS[:p]
-   itunes.sources[0].user_playlists.each do |p|
-      next if p.name != OPTS[:p]
-      tracks = find_duplicates(p)
+if opts[:p]
+   $itunes.sources[0].user_playlists.each do |p|
+      next if p.name != opts[:p]
+      find_duplicates(p, opts[:y])
    end
 else
-   tracks = find_duplicates(itunes.sources[0].user_playlists[0])
+   # 'Library' -> 'Music'
+   find_duplicates($itunes.sources[0].user_playlists[0], opts[:y])
 end
 
-tracks.each do |k,v|
-   next if v.length < 2
-   while v.length > 1 do
-       track = v.pop
-       puts track.location
-       itunes.delete(track) if OPTS[:y]
-   end
-end
