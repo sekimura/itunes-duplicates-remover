@@ -60,7 +60,7 @@ class Numeric
   end
 end
 
-def find_duplicates(playlist, delete=false)
+def find_duplicates(playlist, &do_delete)
    tracks = {}
 
    playlist.file_tracks.each do |t|
@@ -82,23 +82,31 @@ def find_duplicates(playlist, delete=false)
       while v.length > 1 do
           track = v.pop
           puts track.location
-          location = track.location
-          $itunes.delete(track) if delete
-          FileUtils.rm(location) if delete
+          do_delete.call(track)
       end
    end
 end   
 
 ## main
-$itunes = OSA.app('iTunes')
+itunes = OSA.app('iTunes')
+
+playlist = ''
 
 if opts[:p]
-   $itunes.sources[0].user_playlists.each do |p|
+   itunes.sources[0].user_playlists.each do |p|
       next if p.name != opts[:p]
-      find_duplicates(p, opts[:y])
+      playlist = p
    end
 else
    # 'Library' -> 'Music'
-   find_duplicates($itunes.sources[0].user_playlists[0], opts[:y])
+   playlist = itunes.sources[0].user_playlists[0]
 end
 
+find_duplicates( playlist ) do |track|
+   #do_delete
+   if opts[:y]
+      location = track.location
+      itunes.delete(track)
+      FileUtils.rm(location)
+   end
+end
